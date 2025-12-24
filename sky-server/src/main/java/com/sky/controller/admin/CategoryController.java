@@ -56,8 +56,15 @@ public class CategoryController {
 
     @PutMapping
     @ApiOperation("修改分类")
-    public Result save(@RequestBody CategoryDTO categoryDTO){
+    public Result update(@RequestBody CategoryDTO categoryDTO){
         log.info("修改分类：{}",categoryDTO);
+        categoryService.update(categoryDTO);
+        return Result.success();
+    }
+    @PostMapping
+    @ApiOperation("新增分类")
+    public Result save(@RequestBody CategoryDTO categoryDTO){
+        log.info("新增分类，分类数据：{}",categoryDTO);
         categoryService.save(categoryDTO);
         return Result.success();
     }

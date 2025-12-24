@@ -68,12 +68,23 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public void save(CategoryDTO categoryDTO) {
+    public void update(CategoryDTO categoryDTO) {
         Category category = new Category();
         BeanUtils.copyProperties(categoryDTO, category);
         category.setUpdateTime(LocalDateTime.now());
         category.setUpdateUser(BaseContext.getCurrentId());
 
         categoryMapper.update(category);
+    }
+
+    @Override
+    public void save(CategoryDTO categoryDTO) {
+        Category category = new Category();
+        BeanUtils.copyProperties(categoryDTO, category);
+        category.setCreateTime(LocalDateTime.now());
+        category.setUpdateTime(LocalDateTime.now());
+        category.setCreateUser(BaseContext.getCurrentId());
+
+        categoryMapper.save(category);
     }
 }
