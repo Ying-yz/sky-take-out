@@ -108,12 +108,13 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .updateUser(BaseContext.getCurrentId())
                 .build();
 
-        employeeMapper.startOrStop(employee);
+        employeeMapper.update(employee);
     }
 
     @Override
     public Employee getById(Long id) {
         Employee employee = employeeMapper.getById(id);
+        employee.setPassword("****");
         return employee;
     }
 
