@@ -13,8 +13,10 @@ import java.util.List;
 public interface CategoryMapper {
     Page<Category> page(CategoryPageQueryDTO categoryPageQueryDTO);
 
-    @Select("select * from category where type = #{type}")
+
     List<Category> list(Integer type);
     @Delete("delete from category where id = #{id}")
     void delete(Long id);
+
+    void update(Category category);
 }
