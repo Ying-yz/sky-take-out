@@ -86,7 +86,7 @@ public class EmployeeController {
         return Result.success();
     }
 
-    //TODO 员工分页查询
+
     @GetMapping("/page")
     @ApiOperation("员工分页查询")
     public Result<PageResult> page(EmployeePageQueryDTO employeePageQueryDTO){
@@ -94,4 +94,13 @@ public class EmployeeController {
         PageResult pageResult = employeeService.page(employeePageQueryDTO);
         return Result.success(pageResult);
     }
+
+    @PostMapping("/status/{status}")
+    @ApiOperation("员工状态禁用/启用")
+    public Result startOrStop(@PathVariable Integer status, Long id){
+        log.info("员工状态禁用/启用：{} {}",status,id);
+        employeeService.startOrStop(status,id);
+        return Result.success();
+    }
+
 }
