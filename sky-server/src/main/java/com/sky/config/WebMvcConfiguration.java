@@ -12,6 +12,7 @@ import springfox.documentation.builders.ApiInfoBuilder;
 import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.service.ApiInfo;
+import springfox.documentation.service.Contact;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 
@@ -45,8 +46,9 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
     public Docket docket() {
         ApiInfo apiInfo = new ApiInfoBuilder()
                 .title("苍穹外卖项目接口文档")
+                .description("项目源码地址：[点击跳转 GitHub](https://github.com/Ying-yz/sky-take-out)") // 甚至可以写简易 HTML
                 .version("2.0")
-                .description("苍穹外卖项目接口文档")
+                .contact(new Contact("Ying-yz", "https://github.com/Ying-yz", "q264596786@gmail.com"))
                 .build();
         Docket docket = new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo)
