@@ -9,10 +9,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -39,5 +36,12 @@ public class CategoryController {
         List<Category> list = categoryService.list(type);
 
         return Result.success(list);
+    }
+    @DeleteMapping
+    @ApiOperation("删除分类")
+    public Result delete(@RequestParam Long id){
+        log.info("删除分类：{}",id);
+        categoryService.delete(id);
+        return Result.success();
     }
 }

@@ -10,4 +10,6 @@ public interface CategoryService {
     PageResult page(CategoryPageQueryDTO categoryPageQueryDTO);
 
     List<Category> list(Integer type);
+
+    void delete(Long id);
 }
