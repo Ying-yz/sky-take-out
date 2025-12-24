@@ -10,6 +10,9 @@ import com.sky.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
+import java.util.List;
+
 @Service
 public class CategoryServiceImpl implements CategoryService {
     @Autowired
@@ -20,5 +23,10 @@ public class CategoryServiceImpl implements CategoryService {
         PageHelper.startPage(categoryPageQueryDTO.getPage(), categoryPageQueryDTO.getPageSize());
         Page<Category> page = categoryMapper.page(categoryPageQueryDTO);
         return new PageResult(page.getTotal(), page.getResult());
+    }
+
+    @Override
+    public List<Category> list(Integer type) {
+        return categoryMapper.list(type);
     }
 }
