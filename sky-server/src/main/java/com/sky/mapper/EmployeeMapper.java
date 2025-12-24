@@ -24,4 +24,7 @@ public interface EmployeeMapper {
 
     //根据id修改员工状态
     void startOrStop(Employee employee);
+    //根据id查询员工
+    @Select("select * from employee where id = #{id}")
+    Employee getById(Long id);
 }
