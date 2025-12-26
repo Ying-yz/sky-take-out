@@ -28,4 +28,7 @@
         </where>
         order by d.create_time desc
     </select>
+    <select id="getFlavorsByDishId" resultType="java.lang.Long">
+
+    </select>
 </mapper>
