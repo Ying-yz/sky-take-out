@@ -23,4 +23,7 @@ public interface SetmealMapper {
     List<Long> getsetmealIdsByDishIds(List<Long> ids);
 
     Page<SetmealVO> pageQuery(SetmealPageQueryDTO setmealPageQueryDTO);
+
+    @Select("select * from setmeal where id = #{id}")
+    Setmeal getById(Long id);
 }
