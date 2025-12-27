@@ -2,10 +2,15 @@ package com.sky.service.impl;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import com.sky.constant.MessageConstant;
+import com.sky.constant.StatusConstant;
 import com.sky.dto.SetmealDTO;
 import com.sky.dto.SetmealPageQueryDTO;
+import com.sky.entity.Dish;
 import com.sky.entity.Setmeal;
 import com.sky.entity.SetmealDish;
+import com.sky.exception.DeletionNotAllowedException;
+import com.sky.mapper.DishMapper;
 import com.sky.mapper.SetmealDishMapper;
 import com.sky.mapper.SetmealMapper;
 import com.sky.result.PageResult;
@@ -24,6 +29,9 @@ public class SetmealServiceImpl implements SetmealService {
     private SetmealMapper setmealMapper;
     @Autowired
     private SetmealDishMapper setmealDishMapper;
+    @Autowired
+    private DishMapper dishMapper;
+
     @Transactional
     public void save(SetmealDTO setmealDTO) {
         Setmeal setmeal = new Setmeal();
@@ -66,7 +74,7 @@ public class SetmealServiceImpl implements SetmealService {
         return setmealVO;
     }
 
-    @Override
+    @Transactional
     public void update(SetmealDTO setmealDTO) {
 
         Setmeal setmeal = new Setmeal();
@@ -77,7 +85,7 @@ public class SetmealServiceImpl implements SetmealService {
         setmealDishMapper.deleteBySetmealId(setmeal.getId());
         //添加套餐菜品数据
         List<SetmealDish> setmealDishes = setmealDTO.getSetmealDishes();
-        if (setmealDishes != null && setmealDishes.size() > 0){
+        if (setmealDishes != null && setmealDishes.size() > 0) {
             setmealDishes.forEach(setmealDish -> {
                 setmealDish.setSetmealId(setmeal.getId());
             });
@@ -85,12 +93,36 @@ public class SetmealServiceImpl implements SetmealService {
         }
     }
 
-    @Override
+    @Transactional
     public void startOrStop(Integer status, Long id) {
+
+        List<Dish> dishList = dishMapper.getBySetmealId(id);
+        if (dishList != null && dishList.size() > 0) {
+            dishList.forEach(dish -> {
+                if (dish.getStatus() == StatusConstant.DISABLE) {
+                    throw new DeletionNotAllowedException(MessageConstant.SETMEAL_ENABLE_FAILED);
+                }
+            });
+        }
         Setmeal setmeal = Setmeal.builder()
                 .id(id)
                 .status(status)
                 .build();
         setmealMapper.update(setmeal);
+    }
+
+    @Transactional
+    public void delete(List<Long> ids) {
+        //如果ids包含启售的套餐，则提示套餐正在启售中，无法删除
+        for (Long id : ids) {
+            Setmeal setmeal = setmealMapper.getById(id);
+            if (setmeal.getStatus() == StatusConstant.ENABLE) {
+                throw new DeletionNotAllowedException(MessageConstant.SETMEAL_ON_SALE);
+            }
+        }
+
+        setmealMapper.deleteByIds(ids);
+        setmealDishMapper.deleteBySetmealIds(ids);
+
     }
 }

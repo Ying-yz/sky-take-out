@@ -63,4 +63,10 @@
         where id = #{id}
     </update>
 
+    <delete id="deleteByIds">
+        delete from setmeal where id in
+        <foreach collection="list" item="id" separator="," open="(" close=")">
+            #{id}
+        </foreach>
+    </delete>
 </mapper>
