@@ -17,7 +17,7 @@ public class ShopController {
     @Autowired
     private RedisTemplate redisTemplate;
 
-    @PutMapping("/{status}}")
+    @PutMapping("/{status}")
     @ApiOperation("设置营业状态")
     public Result setStatus(@PathVariable Integer status){
         log.info("设置营业状态:{}",status == 1 ? "营业中" : "打烊中");
