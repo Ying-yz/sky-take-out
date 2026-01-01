@@ -21,4 +21,7 @@ public interface UserMapper {
      * 使用 Options 注解可以获取数据库自动生成的自增主键 id
      */
     void insert(User user);
+
+    @Select("select * from user where id = #{id}")
+    User getById(Long userId);
 }
