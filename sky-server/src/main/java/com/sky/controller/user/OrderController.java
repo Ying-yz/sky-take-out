@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController
+@RestController("userOrderController")
 @Slf4j
 @RequestMapping("/user/order")
 @Api(tags = "C端订单接口")
@@ -76,4 +76,5 @@ public class OrderController {
         orderService.repetition(id);
         return Result.success();
     }
+
 }
