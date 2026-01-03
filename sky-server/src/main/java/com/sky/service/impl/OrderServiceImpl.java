@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -231,5 +232,67 @@ public class OrderServiceImpl implements OrderService {
             return shoppingCart;
         }).collect(Collectors.toList());
         shoppingCartMapper.insertBatch(shoppingCartList);
+    }
+
+    @Override
+    public PageResult page(OrdersPageQueryDTO ordersPageQueryDTO) {
+        PageHelper.startPage(ordersPageQueryDTO.getPage(), ordersPageQueryDTO.getPageSize());
+
+        Page<Orders> page = orderMapper.pageQuery(ordersPageQueryDTO);
+        List<OrderVO> orderVOList = getOrderVOList(page);
+
+        return new PageResult(page.getTotal(), orderVOList);
+    }
+
+    private List<OrderVO> getOrderVOList(Page<Orders> page) {
+        List<OrderVO> orderVOList = new ArrayList<>();
+        List<Orders> ordersList = page.getResult();
+
+        if (!CollectionUtils.isEmpty(ordersList)) {
+            for (Orders orders : ordersList) {
+                OrderVO orderVO = new OrderVO();
+                BeanUtils.copyProperties(orders, orderVO);
+
+                // 1. 获取订单详情的简要字符串（你原有的逻辑）
+                String orderDishes = getOrderDishesStr(orders);
+                orderVO.setOrderDishes(orderDishes);
+
+                // 2. 【核心修改】处理地址信息
+                // 根据 orders 里的 addressBookId 去查询地址簿信息
+                if (orders.getAddressBookId() != null) {
+                    // 你需要注入 AddressBookMapper 或调用相关的 Service
+                    AddressBook addressBook = addressBookMapper.getById(orders.getAddressBookId());
+                    if (addressBook != null) {
+                        // 将省、市、区、详细地址拼接成一个完整的字符串
+                        String fullAddress = addressBook.getProvinceName() + addressBook.getCityName()
+                                + addressBook.getDistrictName() + addressBook.getDetail();
+                        orderVO.setAddress(fullAddress); // 封装进 VO 返回给前端
+                    }
+                }
+
+                orderVOList.add(orderVO);
+            }
+        }
+        return orderVOList;
+    }
+
+    /**
+     * 根据订单id获取菜品信息字符串
+     *
+     * @param orders
+     * @return
+     */
+    private String getOrderDishesStr(Orders orders) {
+        // 查询订单菜品详情信息（订单中的菜品和数量）
+        List<OrderDetail> orderDetailList = orderDetailMapper.listByOrderId(orders.getId());
+
+        // 将每一条订单菜品信息拼接为字符串（格式：宫保鸡丁*3；）
+        List<String> orderDishList = orderDetailList.stream().map(x -> {
+            String orderDish = x.getName() + "*" + x.getNumber() + ";";
+            return orderDish;
+        }).collect(Collectors.toList());
+
+        // 将该订单对应的所有菜品信息拼接在一起
+        return String.join("", orderDishList);
     }
 }

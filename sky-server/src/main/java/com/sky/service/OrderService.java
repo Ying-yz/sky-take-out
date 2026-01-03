@@ -30,4 +30,6 @@ public interface OrderService {
     void cancel(Long id) throws Exception;
 
     void repetition(Long id);
+
+    PageResult page(OrdersPageQueryDTO ordersPageQueryDTO);
 }
