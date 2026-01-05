@@ -387,4 +387,28 @@ public class OrderServiceImpl implements OrderService {
 
         orderMapper.update(orders);
     }
+
+    @Override
+    public void cancel(OrdersRejectionDTO ordersRejectionDTO) {
+        Orders orders = orderMapper.getById(ordersRejectionDTO.getId());
+
+        Integer payStatus = orders.getPayStatus();
+        if (payStatus.equals(Orders.PAID)) {
+            // 【修改点】由于没有证书，注释掉真实退款调用
+        /*
+        String refund = weChatPayUtil.refund(
+                orders.getNumber(),
+                orders.getNumber(),
+                new BigDecimal(0.01),
+                new BigDecimal(0.01));
+        log.info("申请退款：{}", refund);
+        */
+            log.info("本地环境模拟退款成功，订单号：{}", orders.getNumber());
+        }
+        orders.setStatus(Orders.CANCELLED);
+        orders.setCancelTime(LocalDateTime.now());
+        orders.setCancelReason(ordersRejectionDTO.getRejectionReason());
+        orders.setId(ordersRejectionDTO.getId());
+        orderMapper.update(orders);
+    }
 }
