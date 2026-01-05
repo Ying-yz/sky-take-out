@@ -389,26 +389,47 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public void cancel(OrdersRejectionDTO ordersRejectionDTO) {
-        Orders orders = orderMapper.getById(ordersRejectionDTO.getId());
+    public void cancel(OrdersCancelDTO ordersCancelDTO) { // 注意：管理端取消通常用 CancelDTO
+        // 1. 查：获取订单原件
+        Orders ordersDB = orderMapper.getById(ordersCancelDTO.getId());
 
-        Integer payStatus = orders.getPayStatus();
-        if (payStatus.equals(Orders.PAID)) {
-            // 【修改点】由于没有证书，注释掉真实退款调用
-        /*
-        String refund = weChatPayUtil.refund(
-                orders.getNumber(),
-                orders.getNumber(),
-                new BigDecimal(0.01),
-                new BigDecimal(0.01));
-        log.info("申请退款：{}", refund);
-        */
-            log.info("本地环境模拟退款成功，订单号：{}", orders.getNumber());
+        // 2. 验：(可选) 校验订单是否存在
+        if (ordersDB == null) {
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
         }
+
+        // 3. 处：处理模拟退款逻辑
+        if (ordersDB.getPayStatus().equals(Orders.PAID)) {
+            // 你的模拟逻辑非常好，保留
+            log.info("管理端取消订单，本地模拟退款成功：{}", ordersDB.getNumber());
+        }
+
+        // 4. 改：构造更新对象
+        // 技巧：重新 new 一个对象只赋值 id 和要修改的字段，性能更好且安全
+        Orders orders = new Orders();
+        orders.setId(ordersCancelDTO.getId());
         orders.setStatus(Orders.CANCELLED);
         orders.setCancelTime(LocalDateTime.now());
-        orders.setCancelReason(ordersRejectionDTO.getRejectionReason());
-        orders.setId(ordersRejectionDTO.getId());
+        orders.setCancelReason(ordersCancelDTO.getCancelReason());
+
+        orderMapper.update(orders);
+    }
+
+    @Override
+    public void delivery(Long id) {
+        // 根据id查询订单
+        Orders ordersDB = orderMapper.getById(id);
+
+        // 校验订单是否存在，并且状态为3
+        if (ordersDB == null || !ordersDB.getStatus().equals(Orders.CONFIRMED)) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+
+        Orders orders = new Orders();
+        orders.setId(ordersDB.getId());
+        // 更新订单状态,状态转为派送中
+        orders.setStatus(Orders.DELIVERY_IN_PROGRESS);
+
         orderMapper.update(orders);
     }
 }
