@@ -24,7 +24,6 @@ public interface OrderService {
      */
     void paySuccess(String outTradeNo);
 
-    PageResult pageQuery(Integer page, Integer pageSize, Integer status);
 
     OrderVO show(Long id);
 
@@ -37,4 +36,6 @@ public interface OrderService {
     OrderStatisticsVO statistics();
 
     OrderVO details(Long id);
+
+    PageResult pageQuery(OrdersPageQueryDTO ordersPageQueryDTO);
 }
