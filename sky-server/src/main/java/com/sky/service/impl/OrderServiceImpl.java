@@ -5,12 +5,10 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
-import com.sky.dto.OrdersConfirmDTO;
-import com.sky.dto.OrdersPageQueryDTO;
-import com.sky.dto.OrdersPaymentDTO;
-import com.sky.dto.OrdersSubmitDTO;
+import com.sky.dto.*;
 import com.sky.entity.*;
 import com.sky.exception.AddressBookBusinessException;
+import com.sky.exception.DeletionNotAllowedException;
 import com.sky.exception.OrderBusinessException;
 import com.sky.mapper.*;
 import com.sky.result.PageResult;
@@ -54,19 +52,19 @@ public class OrderServiceImpl implements OrderService {
     public OrderSubmitVO submit(OrdersSubmitDTO ordersSubmitDTO) {
         //处理异常（地址铺为空，购物车为空）
         AddressBook addressBook = addressBookMapper.getById(ordersSubmitDTO.getAddressBookId());
-        if (addressBook == null){
+        if (addressBook == null) {
             throw new AddressBookBusinessException(MessageConstant.ADDRESS_BOOK_IS_NULL);
         }
         Long userId = BaseContext.getCurrentId();
         ShoppingCart shoppingCart = new ShoppingCart();
         shoppingCart.setUserId(userId);
         List<ShoppingCart> list = shoppingCartMapper.list(shoppingCart);
-        if (list == null || list.size() == 0){
+        if (list == null || list.size() == 0) {
             throw new AddressBookBusinessException(MessageConstant.SHOPPING_CART_IS_NULL);
         }
         //向订单插入一条数据
         Orders orders = new Orders();
-        BeanUtils.copyProperties(ordersSubmitDTO,orders);
+        BeanUtils.copyProperties(ordersSubmitDTO, orders);
         orders.setOrderTime(LocalDateTime.now());
         orders.setPayStatus(Orders.UN_PAID);
         orders.setStatus(Orders.PENDING_PAYMENT);
@@ -80,7 +78,7 @@ public class OrderServiceImpl implements OrderService {
         List<OrderDetail> orderDetailList = new ArrayList<>();
         for (ShoppingCart cart : list) {
             OrderDetail orderDetail = new OrderDetail();
-            BeanUtils.copyProperties(cart,orderDetail);
+            BeanUtils.copyProperties(cart, orderDetail);
             orderDetail.setOrderId(orders.getId());
             orderDetailList.add(orderDetail);
         }
@@ -106,22 +104,26 @@ public class OrderServiceImpl implements OrderService {
      * @return
      */
     public OrderPaymentVO payment(OrdersPaymentDTO ordersPaymentDTO) throws Exception {
-        // 当前登录用户id
+        // 1. 当前登录用户id
         Long userId = BaseContext.getCurrentId();
         User user = userMapper.getById(userId);
 
-        //调用微信支付接口，生成预支付交易单
-        JSONObject jsonObject = weChatPayUtil.pay(
-                ordersPaymentDTO.getOrderNumber(), //商户订单号
-                new BigDecimal(0.01), //支付金额，单位 元
-                "苍穹外卖订单", //商品描述
-                user.getOpenid() //微信用户的openid
-        );
+        // 2. 原本调用微信支付接口的代码已注释
+        // JSONObject jsonObject = weChatPayUtil.pay(...);
 
-        if (jsonObject.getString("code") != null && jsonObject.getString("code").equals("ORDERPAID")) {
+        // 3. 【修改点】构造一个空的或模拟的 JSON 对象，防止后续代码报错
+        JSONObject jsonObject = new JSONObject();
+        // 模拟一个 package 字符串，防止前端解析 VO 时 packageStr 为 null
+        jsonObject.put("package", "prepay_id=wx_mock_data");
+
+        // 4. 【业务校验】如果该订单已经在数据库中标记为已支付，则报错（可选）
+        // 注意：这里建议查一下数据库订单状态，而不是从空的 jsonObject 里取 code
+        Orders orders = orderMapper.getByNumber(ordersPaymentDTO.getOrderNumber());
+        if (orders != null && orders.getPayStatus().equals(Orders.PAID)) {
             throw new OrderBusinessException("该订单已支付");
         }
 
+        // 5. 将 JSON 转换为 VO 返回给前端
         OrderPaymentVO vo = jsonObject.toJavaObject(OrderPaymentVO.class);
         vo.setPackageStr(jsonObject.getString("package"));
 
@@ -154,7 +156,7 @@ public class OrderServiceImpl implements OrderService {
         // 1. 设置当前登录用户的ID
         ordersPageQueryDTO.setUserId(BaseContext.getCurrentId());
         // 2. 开启分页 (PageHelper插件)
-        PageHelper.startPage(ordersPageQueryDTO.getPage(),ordersPageQueryDTO.getPageSize());
+        PageHelper.startPage(ordersPageQueryDTO.getPage(), ordersPageQueryDTO.getPageSize());
         // 3. 调用分页查询方法
         Page<Orders> page = orderMapper.pageQuery(ordersPageQueryDTO);
         // --- 到这里我们只拿到了订单的基本信息，还没拿到订单里的菜品明细 ---
@@ -168,7 +170,7 @@ public class OrderServiceImpl implements OrderService {
             return orderVO;
         }).collect(Collectors.toList());
 
-        return new PageResult(page.getTotal(),list);
+        return new PageResult(page.getTotal(), list);
     }
 
     @Override
@@ -177,7 +179,7 @@ public class OrderServiceImpl implements OrderService {
         Orders orders = orderMapper.getById(id);
         // 2. 拷贝到 OrderVO
         OrderVO orderVO = new OrderVO();
-        BeanUtils.copyProperties(orders,orderVO);
+        BeanUtils.copyProperties(orders, orderVO);
         // 3. 查询订单明细
         List<OrderDetail> orderDetailList = orderDetailMapper.listByOrderId(id);
         orderVO.setOrderDetailList(orderDetailList);
@@ -188,37 +190,42 @@ public class OrderServiceImpl implements OrderService {
 
     @Transactional
     public void cancel(Long id) throws Exception {
-        //根据id查询当前订单信息
+        // 1. 根据id查询当前订单信息
         Orders ordersDB = orderMapper.getById(id);
-        //判断订单是否存在
-        if (ordersDB == null){
+
+        // 2. 各种校验（这部分逻辑写得很好，保留）
+        if (ordersDB == null) {
             throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
         }
-        //判断订单是否可取消
-        if (ordersDB.getStatus() > Orders.TO_BE_CONFIRMED){
+        if (ordersDB.getStatus() > Orders.TO_BE_CONFIRMED) {
             throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
         }
-        //获取当前登录用户id 并封装给一个新的orders对象
+
         Orders orders = new Orders();
         orders.setId(ordersDB.getId());
-        //如果是未接单状态 退款
-        if (ordersDB.getStatus() == Orders.TO_BE_CONFIRMED){
-            //调用微信支付退款接口
-            weChatPayUtil.refund(
-                    ordersDB.getNumber(), //商户订单号
-                    ordersDB.getNumber(), //商户退款单号
-                    new BigDecimal(0.01),//退款金额，单位 元
-                    new BigDecimal(0.01));//原订单金额
 
-            //支付状态修改为 退款
-            orders.setPayStatus(Orders.REFUND);
+        // 3. 处理退款逻辑
+        if (ordersDB.getStatus().equals(Orders.TO_BE_CONFIRMED)) {
+            // 【修改点】注释掉真实退款调用，防止证书缺失导致的空指针异常
+        /*
+        weChatPayUtil.refund(
+                ordersDB.getNumber(),
+                ordersDB.getNumber(),
+                new BigDecimal(0.01),
+                new BigDecimal(0.01));
+        */
+
+            // 模拟退款成功的状态变更
+            log.info("本地环境跳过微信退款，订单号：{}", ordersDB.getNumber());
+            orders.setPayStatus(Orders.REFUND); // 支付状态修改为“退款”
         }
-        //订单状态修改为 取消
+
+        // 4. 更新订单状态
         orders.setStatus(Orders.CANCELLED);
         orders.setCancelReason("用户取消");
         orders.setCancelTime(LocalDateTime.now());
-        orderMapper.update(orders);
 
+        orderMapper.update(orders);
     }
 
     @Transactional
@@ -344,6 +351,40 @@ public class OrderServiceImpl implements OrderService {
                 .id(ordersConfirmDTO.getId())
                 .status(Orders.CONFIRMED)
                 .build();
+        orderMapper.update(orders);
+    }
+
+    @Override
+    public void rejection(OrdersRejectionDTO ordersRejectionDTO) throws Exception {
+        Orders ordersDB = orderMapper.getById(ordersRejectionDTO.getId());
+
+        // 校验订单是否存在且状态为待接单
+        if (ordersDB == null || !ordersDB.getStatus().equals(Orders.TO_BE_CONFIRMED)) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR); // 注意：这里建议抛出状态错误异常
+        }
+
+        // 支付状态
+        Integer payStatus = ordersDB.getPayStatus();
+        if (payStatus.equals(Orders.PAID)) {
+            // 【修改点】由于没有证书，注释掉真实退款调用
+        /*
+        String refund = weChatPayUtil.refund(
+                ordersDB.getNumber(),
+                ordersDB.getNumber(),
+                new BigDecimal(0.01),
+                new BigDecimal(0.01));
+        log.info("申请退款：{}", refund);
+        */
+            log.info("本地环境模拟退款成功，订单号：{}", ordersDB.getNumber());
+        }
+
+        // 更新订单状态为已取消
+        Orders orders = new Orders();
+        orders.setId(ordersDB.getId());
+        orders.setStatus(Orders.CANCELLED);
+        orders.setRejectionReason(ordersRejectionDTO.getRejectionReason()); // 封装拒单原因
+        orders.setCancelTime(LocalDateTime.now()); // 封装取消时间
+
         orderMapper.update(orders);
     }
 }
