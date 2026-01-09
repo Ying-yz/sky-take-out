@@ -8,7 +8,7 @@
         values (#{openid}, #{name}, #{phone}, #{sex}, #{idNumber}, #{avatar}, #{createTime})
     </insert>
     <select id="countByMap" resultType="java.lang.Integer">
-        select count(id) from user
+        select count(id) from orders
         <where>
             <if test="begin != null">
                 and create_time &gt;= #{begin}
