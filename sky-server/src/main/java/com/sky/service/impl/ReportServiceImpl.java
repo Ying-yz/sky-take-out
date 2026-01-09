@@ -4,6 +4,7 @@ import com.sky.entity.Orders;
 import com.sky.mapper.OrderMapper;
 import com.sky.mapper.UserMapper;
 import com.sky.service.ReportService;
+import com.sky.vo.OrderReportVO;
 import com.sky.vo.TurnoverReportVO;
 import com.sky.vo.UserReportVO;
 import org.apache.commons.lang.StringUtils;
@@ -17,7 +18,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 public class ReportServiceImpl implements ReportService {
@@ -28,12 +28,7 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public TurnoverReportVO turnoverStatistics(LocalDate begin, LocalDate end) {
         // 1. 生成日期列表
-        List<LocalDate> dateList = new ArrayList<>();
-        LocalDate current = begin;
-        while (!current.isAfter(end)) {
-            dateList.add(current);
-            current = current.plusDays(1);
-        }
+        List<LocalDate> dateList = getDateList(begin, end);
 
         List<Double> turnoverList = new ArrayList();
         for (LocalDate date : dateList) {
@@ -60,12 +55,7 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public UserReportVO userStatistics(LocalDate begin, LocalDate end) {
         // 1. 生成日期列表
-        List<LocalDate> dateList = new ArrayList<>();
-        LocalDate current = begin;
-        while (!current.isAfter(end)) {
-            dateList.add(current);
-            current = current.plusDays(1);
-        }
+        List<LocalDate> dateList = getDateList(begin, end);
 
         List<Integer> newUserList = new ArrayList();
         List<Integer> totalUserList = new ArrayList();
@@ -89,5 +79,58 @@ public class ReportServiceImpl implements ReportService {
                 .totalUserList(StringUtils.join(totalUserList, ","))
                 .newUserList(StringUtils.join(newUserList, ","))
                 .build();
+    }
+
+    @Override
+    public OrderReportVO ordersStatistics(LocalDate begin, LocalDate end) {
+        List<LocalDate> dateList = getDateList(begin, end);
+        List<Integer> orderCountList = new ArrayList<>();
+        List<Integer> validOrderCountList = new ArrayList<>();
+
+        for (LocalDate date : dateList) {
+            LocalDateTime beginTime = LocalDateTime.of(date, LocalTime.MIN);
+            LocalDateTime endTime = LocalDateTime.of(date, LocalTime.MAX);
+
+            Integer allOrders = getOrderCount(beginTime, endTime, null);
+            Integer validOrders = getOrderCount(beginTime, endTime, Orders.COMPLETED);
+            orderCountList.add(allOrders);
+            validOrderCountList.add(validOrders);
+        }
+
+        Integer totalOrderCount = orderCountList.stream().reduce(Integer::sum).get();
+        Integer validOrderCount = validOrderCountList.stream().reduce(Integer::sum).get();
+
+        double orderCompletionRate = 0.0;
+        if (totalOrderCount != 0){
+            orderCompletionRate = validOrderCount.doubleValue() / totalOrderCount;
+        }
+
+        return OrderReportVO
+                .builder()
+                .dateList(StringUtils.join(dateList, ","))
+                .orderCountList(StringUtils.join(orderCountList, ","))
+                .validOrderCountList(StringUtils.join(validOrderCountList, ","))
+                .totalOrderCount(totalOrderCount)
+                .validOrderCount(validOrderCount)
+                .orderCompletionRate(orderCompletionRate)
+                .build();
+    }
+
+    private List<LocalDate> getDateList(LocalDate begin, LocalDate end) {
+        List<LocalDate> dateList = new ArrayList<>();
+        LocalDate current = begin;
+        while (!current.isAfter(end)) {
+            dateList.add(current);
+            current = current.plusDays(1);
+        }
+        return dateList;
+    }
+
+    private Integer getOrderCount(LocalDateTime begin, LocalDateTime end, Integer status) {
+        Map map = new HashMap();
+        map.put("begin", begin);
+        map.put("end", end);
+        map.put("status", status);
+        return orderMapper.countByMap(map);
     }
 }
